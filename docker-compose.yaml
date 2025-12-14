@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust      # ❌ INSEGURO
+      POSTGRES_DB: postgres
+    volumes:
+      - ./sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init_postgres.sql
+
+  mysql:
+    image: mysql:8
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"     # ❌ INSEGURO
+      MYSQL_DATABASE: tienda
+    command: ["mysqld", "--default_authentication_plugin=mysql_native_password"]
+    volumes:
+      - ./sql/init_mysql.sql:/docker-entrypoint-initdb.d/01_init_mysql.sql
+
+  app:
+    image: python:3.11-slim
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    command: ["python", "vulnerable.py"]
+    depends_on:
+      - postgres
+      - mysql
