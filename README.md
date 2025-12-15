@@ -23,11 +23,11 @@ SBDBBD-ACT2/
 │   ├── init_postgres_audit.sql # Roles, logging, pgcrypto y cifrado de emails
 │   └── init_postgres_tls.sh    # Copia los certificados TLS al contenedor
 ├── tls/
-│   ├── mysql_server.crt/key    # Certificado y clave del servidor MySQL
-│   ├── pg_server.crt/key       # Certificado y clave del servidor PostgreSQL
+│   ├── certs.sh                # Script para generar certificados autofirmados (openssl)
+│   ├── mysql_server.crt/key    # Certificado y clave del servidor MySQL (generados localmente, gitignore)
+│   ├── pg_server.crt/key       # Certificado y clave del servidor PostgreSQL (generados localmente, gitignore)
 │   └── mysql_ssl.cnf           # Configuración extra para habilitar SSL en mysqld
-└── .inseguros-archivo/
-    └── docker-compose.yaml     # Variante inicial e insegura (auth relajada, sin TLS)
+└── README.md                   # Este documento
 ```
 
 ## Servicios orquestados
@@ -92,10 +92,10 @@ Para restaurar, invierte los comandos empleando `pg_restore` o `mysql < backups/
 
 ## Comparativa con la versión insegura
 
-El directorio `.inseguros-archivo/` conserva el `docker-compose.yaml` original utilizado para demostrar malas prácticas: contraseñas vacías, `POSTGRES_HOST_AUTH_METHOD=trust`, sin TLS ni roles mínimos. Sirve como referencia directa de los vectores mitigados en la versión principal del repositorio.
+La versión inicial insegura (contraseñas vacías, `POSTGRES_HOST_AUTH_METHOD=trust`, sin TLS ni roles mínimos) se mantuvo solo como referencia temporal y ya no forma parte del repositorio. La documentación y los scripts actuales reflejan únicamente la arquitectura endurecida.
 
 ## Personalización
 
 - Ajusta usuarios/contraseñas en `app/app.env` y en `docker-compose.yaml` si deseas regenerar claves.
-- Sustituye los certificados por otros emitidos por tu CA; los scripts de `sql/*tls.sh` copiarán los nuevos valores en el arranque.
+- Genera nuevos certificados con `tls/certs.sh` (autofirmados) o sustituye los archivos por otros emitidos por tu CA; los scripts `sql/*tls.sh` los copiarán al arrancar. Los `.crt`, `.key` y `.pem` se excluyen mediante `.gitignore` y no deben subirse al repositorio.
 - Extiende los scripts `sql/init_*.sql` para añadir más tablas o reglas de auditoría según tus necesidades.
