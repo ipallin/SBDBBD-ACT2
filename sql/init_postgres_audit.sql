@@ -19,3 +19,14 @@ ALTER SYSTEM SET ssl_key_file = 'server.key';
 -- (Opcional) Si pgaudit está disponible
 -- ALTER SYSTEM SET shared_preload_libraries = 'pgaudit';
 -- ALTER SYSTEM SET pgaudit.log = 'read, write, ddl';
+
+-- Habilitar pgcrypto
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Columna cifrada para email
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_enc BYTEA;
+
+-- Cifrar emails existentes
+UPDATE usuarios
+SET email_enc = pgp_sym_encrypt(email, 'Pass#Demo2025');
+

@@ -5,6 +5,8 @@ from decimal import Decimal, InvalidOperation
 import psycopg2
 import pymysql
 
+PG_EMAIL_KEY = os.getenv("PG_EMAIL_KEY", "Pass#Demo2025")
+
 
 def get_postgres_connection():
     return psycopg2.connect(
@@ -36,7 +38,20 @@ def buscar_usuario_seguro(pg_conn):
         print("Nombre vacío.")
         return
     with pg_conn.cursor() as cur:
-        cur.execute("SELECT id, nombre, email FROM usuarios WHERE nombre = %s;", (nombre,))
+        # Usamos parámetros para evitar concatenar entradas de usuario (previene SQLi).
+        cur.execute(
+            """
+            SELECT id,
+                   nombre,
+                   COALESCE(
+                       pgp_sym_decrypt(email_enc, %s)::text,
+                       email
+                   ) AS email
+            FROM usuarios
+            WHERE nombre = %s;
+            """,
+            (PG_EMAIL_KEY, nombre),
+        )
         filas = cur.fetchall()
     if not filas:
         print("Sin resultados.")
@@ -65,6 +80,7 @@ def insertar_producto_seguro(my_conn):
         print("Precio inválido.")
         return
     with my_conn.cursor() as cur:
+        # Query parametrizada para impedir inyección al insertar productos.
         cur.execute(
             "INSERT INTO productos (nombre, precio) VALUES (%s, %s);",
             (nombre, str(precio)),
