@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust      # ❌ INSEGURO
+      POSTGRES_DB: postgres
+    volumes:
+      - ./sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init_postgres.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mysql:
+    image: mysql:8
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"     # ❌ INSEGURO
+      MYSQL_DATABASE: tienda
+    volumes:
+      - ./sql/init_mysql.sql:/docker-entrypoint-initdb.d/01_init_mysql.sql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    image: python:3.11-slim
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    environment:
+      PYTHONUNBUFFERED: "1"
+    command: ["sh", "-c", "pip install --no-cache-dir -r requiremewnts.txt && sleep 5 && python vulnerable.py"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy

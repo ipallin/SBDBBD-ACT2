@@ -1,35 +1,72 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:15
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST_AUTH_METHOD: trust      # ❌ INSEGURO
+      POSTGRES_PASSWORD: SuperPg#2025
       POSTGRES_DB: postgres
     volumes:
       - ./sql/init_postgres.sql:/docker-entrypoint-initdb.d/01_init_postgres.sql
+      - ./sql/init_postgres_audit.sql:/docker-entrypoint-initdb.d/02_init_postgres_audit.sql
+      - ./sql/init_postgres_tls.sh:/docker-entrypoint-initdb.d/03_init_postgres_tls.sh
+      - pgdata:/var/lib/postgresql/data
+      - ./tls:/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - dbnet
 
   mysql:
     image: mysql:8
-    ports:
-      - "3306:3306"
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"     # ❌ INSEGURO
+      MYSQL_ROOT_PASSWORD: SuperMy#2025
       MYSQL_DATABASE: tienda
-    command: ["mysqld", "--default_authentication_plugin=mysql_native_password"]
     volumes:
       - ./sql/init_mysql.sql:/docker-entrypoint-initdb.d/01_init_mysql.sql
+      - ./sql/init_mysql_audit.sql:/docker-entrypoint-initdb.d/02_init_mysql_audit.sql
+      - ./sql/init_mysql_tls.sh:/docker-entrypoint-initdb.d/03_init_mysql_tls.sh
+      - mysqldata:/var/lib/mysql
+      - ./tls:/tls:ro
+      - ./tls/mysql_ssl.cnf:/etc/mysql/conf.d/ssl.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - dbnet
 
   app:
     image: python:3.11-slim
     volumes:
       - ./app:/app
     working_dir: /app
-    command: ["python", "vulnerable.py"]
+    stdin_open: true
+    tty: true
+    env_file:
+      - ./app/app.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PG_HOST: postgres
+      PG_DB: postgres
+      MY_HOST: mysql
+      MY_DB: tienda
+    command: ["sh", "-c", "pip install --no-cache-dir -r requiremewnts.txt && python seguro.py"]
     depends_on:
-      - postgres
-      - mysql
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - dbnet
+
+volumes:
+  pgdata:
+  mysqldata:
+
+networks:
+  dbnet:
+    driver: bridge
